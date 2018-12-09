@@ -11,7 +11,6 @@ from os import walk
 from itertools import product
 from scipy.stats import friedmanchisquare
 
-
 import numpy as np
 from time import time
 import matplotlib.pyplot as plt
@@ -76,8 +75,13 @@ if __name__ == '__main__':
 
             if df_train.shape[1] != df_test.shape[1]:
                 missing_cols = set(df_train.columns) - set(df_test.columns)
-                for col in missing_cols:
-                    df_test[col] = np.zeros([df_test.shape[0],1])
+                if not missing_cols:
+                    missing_cols = set(df_test.columns) - set(df_train.columns)
+                    for col in missing_cols:
+                        df_train[col] = np.zeros([df_train.shape[0],1])
+                else:
+                    for col in missing_cols:
+                        df_test[col] = np.zeros([df_test.shape[0],1])
 
             clf = MyIBL(n_neighbors=n_neighbor,
                         ibl_algo='ib2',
