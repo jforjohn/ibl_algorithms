@@ -150,6 +150,8 @@ class MyIBL:
         self.labels_freq = Counter(self.y_cd)
         # convert the indexes of X to data points to use in predict func
         self.cd = X[self.cd]
+        print('cd: ', len(self.cd))
+        print('ycd: ', self.y_cd.shape)
         #print(self.cd)
         #print(self.classification)
         #print(X[self.misclassified])
@@ -331,7 +333,6 @@ class MyIBL:
 
 
     def predict(self, dataX, datay, voting='mvs', distance_metric='euclidean'):
-        print(len(self.cd))
         if isinstance(dataX, pd.DataFrame) or isinstance(dataX, pd.Series):
             X = dataX.values
         elif isinstance(dataX, np.ndarray):
