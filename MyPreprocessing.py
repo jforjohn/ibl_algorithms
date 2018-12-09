@@ -55,7 +55,7 @@ class MyPreprocessing:
 
             if df_obj.size > 0:
                 #df_encoded = df_obj.apply(lambda x: pd.factorize(x)[0])
-                df_encoded = pd.get_dummies(df_obj)
+                df_encoded = pd.get_dummies(df_obj, dummy_na=True)
                 '''
                 # NaN values in categorical columns are 0
                 if nan_cols.size > 0:
