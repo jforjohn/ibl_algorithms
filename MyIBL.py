@@ -32,6 +32,8 @@ class MyIBL:
             elif metric == 'cosine':
                 dist = 1 - np.dot(neighbor, inst)/(np.sqrt(np.sum(np.square(dist))) *
                                                    np.sqrt(np.sum(np.square(neighbor))))
+            elif metric == 'canberra':
+                dist = np.sum(np.abs(neighbor - inst)/ (neighbor + inst))
             dist_lst.append((dist, neighbor, self.y_cd[ind]))
             ind += 1
         return dist_lst
@@ -45,7 +47,6 @@ class MyIBL:
         #class_accuracy = cr_correct / (counter+1)
         correct_class_accuracy_interval = proportion_confint(cr_correct, counter+1)
         class_freq_interval = proportion_confint(class_inst_counter, counter+1)
-        print('A', correct_class_accuracy_interval, class_freq_interval)
         #rel_freq = classCounter_ind / (counter+1)
         #if class_accuracy > rel_freq:
 
@@ -53,7 +54,7 @@ class MyIBL:
         # endpoint is greater than the class frequency interval's higher endpoint, then the instance
         # is accepted.
         if correct_class_accuracy_interval[0] > class_freq_interval[1]:
-            print('ATrue')
+            print('ATrue', correct_class_accuracy_interval, class_freq_interval)
             return True
         else:
             return False
@@ -63,10 +64,9 @@ class MyIBL:
         # is less than their class frequency interval's lower endpoint.
         correct_class_accuracy_interval = proportion_confint(correct_classificationRecord_ind, counter + 1)
         class_freq_interval = proportion_confint(class_inst_counter, counter + 1)
-        print('D', correct_class_accuracy_interval, class_freq_interval)
         if correct_class_accuracy_interval[1] < class_freq_interval[0]:
             # drop
-            print('DTrue')
+            #print('DTrue', correct_class_accuracy_interval, class_freq_interval)
             return True
         else:
             return False
@@ -88,6 +88,7 @@ class MyIBL:
 
             self.cd.append(ind)
         self.y_cd = y[self.cd]
+        self.labels_freq = Counter(self.y_cd)
         # convert the indexes of X to data points to use in predict func
         self.cd = X[self.cd]
         #print(self.classification)
@@ -111,6 +112,7 @@ class MyIBL:
 
                 self.cd.append(ind)
         self.y_cd = y[self.cd]
+        self.labels_freq = Counter(self.y_cd)
         # convert the indexes of X to data points to use in predict func
         self.cd = X[self.cd]
         #print(self.cd)
@@ -191,6 +193,7 @@ class MyIBL:
                         sim_copy.remove(sim[cd_ind])
             self.cd = cd_copy
         self.y_cd = y[self.cd]
+        self.labels_freq = Counter(self.y_cd)
         # convert the indexes of X to data points to use in predict func
         self.cd = X[self.cd]
 
@@ -225,22 +228,54 @@ class MyIBL:
 
     def tieResolver(self, most_commons):
         pred_labels, _ = zip(*most_commons)
-        labels_freq = Counter(self.y_cd)
         freqs = []
         N = 0
         for label in pred_labels:
-            freq = labels_freq[label]
+            freq = self.labels_freq[label]
             N += freq
             freqs.append(freq)
         prob = np.array(freqs) / N
 
         return np.random.choice(pred_labels, 1, p=prob)[0]
 
+    def getMostCommonLabels(self, cnt_lst):
+        cnt = Counter(cnt_lst)
+        most_common_num = cnt.most_common(1)[0][1]
+        # Check if there are other labels with the same count
+        most_commons = list(filter(
+            lambda t: t[1] >= most_common_num, cnt.most_common()))
+        return most_commons
+
     def getWinnerLabel(self, neighborhood, voting='mvs'):
         _, Xneighborhood, train_label = zip(*neighborhood)
         pred_label = None
         if voting == 'mvs':
+            most_commons = self.getMostCommonLabels(train_label)
+            if len(most_commons) == 1:
+                pred_label = most_commons[0][0]
+            else:
+                # tie
+                pred_label = self.tieResolver(most_commons)
+
+        elif voting == 'mp':
+            most_commons = self.getMostCommonLabels(train_label)
+            if len(most_commons) == 1:
+                pred_label = most_commons[0][0]
+            else:
+                # tie
+                while pred_label is None:
+                    # remove the one which farther
+                    train_label = train_label[:-1]
+                    most_commons = self.getMostCommonLabels(train_label)
+                    if len(most_commons) == 1:
+                        pred_label = most_commons[0][0]
+
+        elif voting == 'brd':
             cnt = Counter(train_label)
+            borda_counter = 1
+            for lbl in train_label:
+                cnt[lbl] += len(train_label) - borda_counter
+                borda_counter += 1
             most_common_num = cnt.most_common(1)[0][1]
             # Check if there are other labels with the same count
             most_commons = list(filter(
@@ -250,8 +285,7 @@ class MyIBL:
             else:
                 # tie
                 pred_label = self.tieResolver(most_commons)
-        elif voting == 'mp':
-            
+
         return pred_label
 
 
