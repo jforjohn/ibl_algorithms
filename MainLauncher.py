@@ -9,6 +9,8 @@ import argparse
 import sys
 from os import walk
 from itertools import product
+from scipy.stats import friedmanchisquare
+
 
 import numpy as np
 from time import time
@@ -54,9 +56,12 @@ if __name__ == '__main__':
                     distances,
                     votings]
 
-    results = pd.DataFrame()
+    df_results = pd.DataFrame()
+    accum_acc_lst = []
+    row_names = []
     for n_neighbor, distance, voting in product(*combinations):
-        accuracy = 0
+        #accuracy = 0
+        acc_lst = []
         missclassification_rate = 0
         cd_len = 0
         start = time()
@@ -78,13 +83,21 @@ if __name__ == '__main__':
 
             size_fold = df_test.shape[0]
             cd_len += len(clf.cd) / df_train.shape[0]
-            accuracy += clf.classificationTest['correct'] / size_fold
+            acc = clf.classificationTest['correct'] / size_fold
+            acc_lst.append(acc)
             missclassification_rate += clf.classificationTest['incorrect'] /size_fold
 
         duration = time() - start
         row_name = 'k=' + str(n_neighbor) + '/' + distance + '/' + voting
+        row_names.append(row_name)
+        accum_acc_lst.append(acc_lst)
+        accuracy = sum(acc_lst)
         df = pd.DataFrame([[duration, accuracy/10, missclassification_rate/10, cd_len/10]],
                           index=[row_name],
                           columns=['Time', 'Accuracy', 'MisclassRate', 'CDpercentage'])
-        results = pd.concat([results, df], axis=0)
-        print(results)
+        df_results = pd.concat([df_results, df], axis=0)
+        print(df_results)
+    df_acc = pd.DataFrame(accum_acc_lst, index=row_names)
+    print(df_acc)
+    stat, p = friedmanchisquare(accum_acc_lst)
+    print(stat, p)
