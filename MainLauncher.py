@@ -77,7 +77,7 @@ if __name__ == '__main__':
             pred = clf.predict(df_test, ytest)
 
             size_fold = df_test.shape[0]
-            cd_len += len(clf.cd) / size_fold
+            cd_len += len(clf.cd) / df_train.shape[0]
             accuracy += clf.classificationTest['correct'] / size_fold
             missclassification_rate += clf.classificationTest['incorrect'] /size_fold
 
@@ -88,4 +88,3 @@ if __name__ == '__main__':
                           columns=['Time', 'Accuracy', 'MisclassRate', 'CDpercentage'])
         results = pd.concat([results, df], axis=0)
         print(results)
-        
