@@ -10,30 +10,55 @@ from collections import Counter
 
 
 class MyIBL:
-    def __init__(self, n_neighbors=1, ibl_algo='ib2', weights='uniform'):
+    def __init__(self, n_neighbors=1, ibl_algo='ib2',
+                 voting='mvs', distance='euclidean', weights='uniform'):
         self.n_neighbors = n_neighbors
+        self.voting = voting
+        self.distance = distance
         self.weights = weights
         self.ibl_algo = ibl_algo.lower()
 
-    def similarity(self, X, inst):
-        sim = []
-        for ind in np.array(self.cd):
-            dist = np.sqrt(np.sum(np.square(X[ind]-inst)))
-            sim.append((0-dist, ind))
-        return sim
+    def hvdmCalc(self, X, inst, y):
+        class_counter = Counter(y)
+        for neighbor in np.array(self.cd):
+            np.count_nonzero(y == y[self.cd_elem])
 
-    def distances(self, inst, metric='euclidean'):
+
+
+    def similarity(self, X, inst, y):
+        # TODO: adjust this function to distances for consistency
+        # cd a list of indexes, (training)
+        sim_lst = []
+        dist = 0
+        for neighbor in np.array(self.cd):
+            if self.distance == 'euclidean':
+                dist = np.sqrt(np.sum(np.square(X[neighbor] - inst)))
+            elif self.distance == 'cosine':
+                dist = 1 - np.dot(X[neighbor], inst)/(np.sqrt(np.sum(np.square(inst))) *
+                                                   np.sqrt(np.sum(np.square(X[neighbor]))))
+            elif self.distance == 'canberra':
+                dist = np.sum(np.sqrt(np.sum(np.square(neighbor - inst))) /
+                              np.sqrt(np.sum(np.square(neighbor + inst))))
+            elif self.distance == 'hvdm':
+                dist = self.hvdmCalc(X, inst, y)
+            sim_lst.append((0-dist, neighbor, y[neighbor]))
+
+        return sim_lst
+
+    def distances(self, inst):
+        # cd a list of data points (testing)
         dist_lst = []
         ind = 0
         dist = 0
         for neighbor in self.cd:
-            if metric == 'euclidean':
+            if self.distance == 'euclidean':
                 dist = np.sqrt(np.sum(np.square(neighbor - inst)))
-            elif metric == 'cosine':
-                dist = 1 - np.dot(neighbor, inst)/(np.sqrt(np.sum(np.square(dist))) *
+            elif self.distance == 'cosine':
+                dist = 1 - np.dot(neighbor, inst)/(np.sqrt(np.sum(np.square(inst))) *
                                                    np.sqrt(np.sum(np.square(neighbor))))
-            elif metric == 'canberra':
-                dist = np.sum(np.abs(neighbor - inst)/ (neighbor + inst))
+            elif self.distance == 'canberra':
+                dist = np.sum(np.sqrt(np.sum(np.square(neighbor - inst)))/
+                              np.sqrt(np.sum(np.square(neighbor + inst))))
             dist_lst.append((dist, neighbor, self.y_cd[ind]))
             ind += 1
         return dist_lst
@@ -74,7 +99,7 @@ class MyIBL:
     def fitIB1(self, X, y):
         self.cd = [0]
         for ind in range(1, X.shape[0]):
-            sim = self.similarity(X, X[ind])
+            sim = self.similarity(X, X[ind], y)
             sim_max = max(sim)
 
             #print(X[ind], y[ind])
@@ -98,13 +123,23 @@ class MyIBL:
     def fitIB2(self, X, y):
         self.cd = [0]
         for ind in range(1, X.shape[0]):
-            sim = self.similarity(X, X[ind])
-            sim_max = max(sim)
+            sim = self.similarity(X, X[ind], y)
 
+            self.labels_freq = Counter(y)
+            neighborhood = []
+            k = 0
+            while k < self.n_neighbors and len(sim)>0:
+                # we don't need to sort all similarities just take the
+                # k max similarity neighbors
+                min_inst = max(sim)
+                sim.remove(min_inst)
+                neighborhood.append(min_inst)
+                k += 1
+            y_sim_max = self.getWinnerLabel(neighborhood)
             #print(X[ind], y[ind])
             #print(X[sim_max[1]], y[sim_max[1]])
             #print()
-            if y[ind] == y[sim_max[1]]:
+            if y[ind] == y_sim_max:
                 self.classification['correct'] += 1
             else:
                 self.classification['incorrect'] += 1
@@ -125,18 +160,18 @@ class MyIBL:
         classCounter = {}
         classCounter[y[0]] = 1
         classificationRecord = {}
-        th_lower = 1
+        th_lower = 10
         th_upper = 0
 
         for ind in range(1, X.shape[0]):
 
-            if not classCounter.get(y[ind]):
-                classCounter[y[ind]] = 1
-            else:
+            if classCounter.get(y[ind]):
                 classCounter[y[ind]] += 1
+            else:
+                classCounter[y[ind]] = 1
 
             # sim => (max sim, corresponding saved instance in self.cd)
-            sim = self.similarity(X, X[ind])
+            sim = self.similarity(X, X[ind], y)
 
             sim_acceptable = []
             for cd_elem in self.cd:
@@ -150,21 +185,23 @@ class MyIBL:
             if sim_acceptable:
                 sim_max_tup = max(sim_acceptable)
             else:
-                i = randint(0, len(self.cd)-1)
-                sim_max_tup = sim[i]
+                i_max = randint(0, len(self.cd)-1)
+                sim_sort = sorted(sim)
+                sim_max_tup = sim_sort[i_max]
 
             sim_max = sim_max_tup[0]
-            self.cdInst_max = sim_max_tup[1]
-            if y[ind] == y[self.cdInst_max]:
+            #cdInst_max = sim_max_tup[1]
+            y_cd_max = sim_max_tup[2]
+            if y[ind] != y_cd_max:
                     self.classification['correct'] += 1
             else:
                 self.classification['incorrect'] += 1
                 self.misclassified.append(ind)
                 self.cd.append(ind)
-                sim = self.similarity(X, X[ind])
+                sim = self.similarity(X, X[ind], y)
 
             cd_copy = self.cd.copy()
-            sim_copy = sim.copy()
+            #sim_copy = sim.copy()
             for cd_ind in range(len(self.cd)):
 
                 if sim[cd_ind][0] >= sim_max:
@@ -178,21 +215,24 @@ class MyIBL:
                     else:
                         classificationRecord[saved_cd]['incorrect'] += 1
 
-                    '''
-                    if ((classificationRecord[saved_self.cd]['incorrect'] > th_lower or
-                        classificationRecord[saved_self.cd]['correct'] < th_upper) and
-                        len(self.cd_copy)>1):
-                    '''
                     class_rec_cdInd = classificationRecord[saved_cd]['correct']
-                    # class_coutner_total = np.count_nonzero(y == y[self.cd_elem]
+                    # class_counter_total = np.count_nonzero(y == y[self.cd_elem]
                     class_inst_counter = classCounter[y[saved_cd]]
+                    '''
+                    if ((classificationRecord[saved_cd]['incorrect'] > th_lower or
+                        classificationRecord[saved_cd]['correct'] < th_upper) and
+                        len(cd_copy)>1):
+                    '''
                     if self.dropInstanceFromCD(class_rec_cdInd,
                         class_inst_counter,
                         ind):
                         cd_copy.remove(saved_cd)
-                        sim_copy.remove(sim[cd_ind])
+                        del classificationRecord[saved_cd]
+                        #sim.remove(sim[cd_ind])
             self.cd = cd_copy
         self.y_cd = y[self.cd]
+        print('cd: ', len(self.cd))
+        print('ycd: ', self.y_cd.shape)
         self.labels_freq = Counter(self.y_cd)
         # convert the indexes of X to data points to use in predict func
         self.cd = X[self.cd]
@@ -211,7 +251,8 @@ class MyIBL:
             y = datay
         else:
             raise Exception('datay should be a DataFrame or a numpy array')
-
+        print('X: ', X.shape)
+        print('y: ', y.shape)
         self.classification = {'correct': 0,
                                'incorrect': 0}
         self.classificationTest = {'correct': 0,
@@ -246,10 +287,10 @@ class MyIBL:
             lambda t: t[1] >= most_common_num, cnt.most_common()))
         return most_commons
 
-    def getWinnerLabel(self, neighborhood, voting='mvs'):
-        _, Xneighborhood, train_label = zip(*neighborhood)
+    def getWinnerLabel(self, neighborhood):
+        _, _, train_label = zip(*neighborhood)
         pred_label = None
-        if voting == 'mvs':
+        if self.voting == 'mvs':
             most_commons = self.getMostCommonLabels(train_label)
             if len(most_commons) == 1:
                 pred_label = most_commons[0][0]
@@ -257,7 +298,7 @@ class MyIBL:
                 # tie
                 pred_label = self.tieResolver(most_commons)
 
-        elif voting == 'mp':
+        elif self.voting == 'mp':
             most_commons = self.getMostCommonLabels(train_label)
             if len(most_commons) == 1:
                 pred_label = most_commons[0][0]
@@ -270,7 +311,7 @@ class MyIBL:
                     if len(most_commons) == 1:
                         pred_label = most_commons[0][0]
 
-        elif voting == 'brd':
+        elif self.voting == 'brd':
             cnt = Counter(train_label)
             borda_counter = 1
             for lbl in train_label:
@@ -290,6 +331,7 @@ class MyIBL:
 
 
     def predict(self, dataX, datay, voting='mvs', distance_metric='euclidean'):
+        print(len(self.cd))
         if isinstance(dataX, pd.DataFrame) or isinstance(dataX, pd.Series):
             X = dataX.values
         elif isinstance(dataX, np.ndarray):
@@ -305,15 +347,16 @@ class MyIBL:
             raise Exception('datay should be a DataFrame or a numpy array')
 
         for inst, true_label in zip(X, y):
-            dist = self.distances(inst, metric=distance_metric)
+            dist = self.distances(inst)
             neighborhood = []
             for k in range(self.n_neighbors):
                 # we don't need to sort all similarities just take the
                 # k max similarity neighbors
-                min_inst = min(dist)
+
+                min_inst = min(dist, key=lambda x: x[0])
                 dist.remove(min_inst)
                 neighborhood.append(min_inst)
-            pred = self.getWinnerLabel(neighborhood, voting)
+            pred = self.getWinnerLabel(neighborhood)
 
             # feedback to training
             if pred == true_label:
