@@ -8,12 +8,13 @@ from config_loader import load
 import argparse
 import sys
 from os import walk
+from itertools import product
 
 import numpy as np
 from time import time
 import matplotlib.pyplot as plt
 
-def getProcessedData(path, dataset, filename):
+def getProcessedData(path, dataset, filename, raw=False):
     try:
         Xtrain, meta = loadarff(path + filename)
     except FileNotFoundError:
@@ -21,7 +22,7 @@ def getProcessedData(path, dataset, filename):
         sys.exit(1)
 
     # Preprocessing
-    preprocess = MyPreprocessing()
+    preprocess = MyPreprocessing(raw)
     preprocess.fit(Xtrain)
     df = preprocess.new_df
     labels = preprocess.labels_
@@ -46,16 +47,45 @@ if __name__ == '__main__':
     filenames = [filename for _,_,filename in walk(path)][0]
 
     train_obj = []
-    for f_ind in range(0,len(filenames), 2):
-        test_file = filenames[f_ind]
-        train_file = filenames[f_ind+1]
+    n_neighbors = [3, 5, 7]
+    distances = ['euclidean', 'cosine', 'canberra']
+    votings = ['mvs', 'mp', 'brd']
+    combinations = [n_neighbors,
+                    distances,
+                    votings]
 
-        df_train, ytrain = getProcessedData(path, dataset, train_file)
-        df_test, ytest = getProcessedData(path, dataset, test_file)
+    results = pd.DataFrame()
+    for n_neighbor, distance, voting in product(*combinations):
+        accuracy = 0
+        missclassification_rate = 0
+        cd_len = 0
+        start = time()
+        for f_ind in range(0,len(filenames), 2):
+            test_file = filenames[f_ind]
+            train_file = filenames[f_ind+1]
+            # raw = False
+            df_train, ytrain = getProcessedData(path, dataset, train_file)
+            df_test, ytest = getProcessedData(path, dataset, test_file)
 
-        clf = MyIBL(3)
-        clf.fit(df_train, ytrain)
-        train_obj.append(clf)
-        pred = clf.predict(df_test, ytest)
-        break
-print(clf.classificationTest)
+            clf = MyIBL(n_neighbors=n_neighbor,
+                        ibl_algo='ib2',
+                        voting=voting,
+                        distance=distance
+                        )
+            clf.fit(df_train, ytrain)
+            train_obj.append(clf)
+            pred = clf.predict(df_test, ytest)
+
+            size_fold = df_test.shape[0]
+            cd_len += len(clf.cd) / size_fold
+            accuracy += clf.classificationTest['correct'] / size_fold
+            missclassification_rate += clf.classificationTest['incorrect'] /size_fold
+
+        duration = time() - start
+        row_name = 'k=' + str(n_neighbor) + '/' + distance + '/' + voting
+        df = pd.DataFrame([[duration, accuracy/10, missclassification_rate/10, cd_len/10]],
+                          index=[row_name],
+                          columns=['Time', 'Accuracy', 'MisclassRate', 'CDpercentage'])
+        results = pd.concat([results, df], axis=0)
+        print(results)
+        
