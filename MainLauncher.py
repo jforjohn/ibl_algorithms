@@ -58,10 +58,12 @@ if __name__ == '__main__':
 
     df_results = pd.DataFrame()
     accum_acc_lst = []
+    accum_time_lst = []
     row_names = []
     for n_neighbor, distance, voting in product(*combinations):
         #accuracy = 0
         acc_lst = []
+        time_lst = []
         missclassification_rate = 0
         cd_len = 0
         start = time()
@@ -71,6 +73,11 @@ if __name__ == '__main__':
             # raw = False
             df_train, ytrain = getProcessedData(path, dataset, train_file)
             df_test, ytest = getProcessedData(path, dataset, test_file)
+
+            if df_train.shape[1] != df_test.shape[1]:
+                missing_cols = set(df_train.columns) - set(df_test.columns)
+                for col in missing_cols:
+                    df_test[col] = np.zeros([df_test.shape[0],1])
 
             clf = MyIBL(n_neighbors=n_neighbor,
                         ibl_algo='ib2',
@@ -85,19 +92,43 @@ if __name__ == '__main__':
             cd_len += len(clf.cd) / df_train.shape[0]
             acc = clf.classificationTest['correct'] / size_fold
             acc_lst.append(acc)
+            duration = time() - start
+            time_lst.append(duration)
             missclassification_rate += clf.classificationTest['incorrect'] /size_fold
 
-        duration = time() - start
         row_name = 'k=' + str(n_neighbor) + '/' + distance + '/' + voting
         row_names.append(row_name)
         accum_acc_lst.append(acc_lst)
+        accum_time_lst.append(time_lst)
+        duration_time = sum(time_lst)
         accuracy = sum(acc_lst)
-        df = pd.DataFrame([[duration, accuracy/10, missclassification_rate/10, cd_len/10]],
+        df = pd.DataFrame([[duration_time/10, accuracy/10, missclassification_rate/10, cd_len/10]],
                           index=[row_name],
                           columns=['Time', 'Accuracy', 'MisclassRate', 'CDpercentage'])
         df_results = pd.concat([df_results, df], axis=0)
         print(df_results)
+
     df_acc = pd.DataFrame(accum_acc_lst, index=row_names)
+    df_time = pd.DataFrame(accum_time_lst, index=row_names)
+    print('Accuracy:')
     print(df_acc)
-    stat, p = friedmanchisquare(accum_acc_lst)
+    print()
+    stat, p = friedmanchisquare(*accum_acc_lst)
     print(stat, p)
+    print()
+
+    print('Time:')
+    print(df_time)
+    print()
+    stat, p = friedmanchisquare(*accum_time_lst)
+    print(stat, p)
+    print()
+
+    print('Results:')
+    print(df_results.values.tolist())
+    print('Accuracy')
+    print(accum_acc_lst)
+    print('Time')
+    print(accum_time_lst)
+
+
