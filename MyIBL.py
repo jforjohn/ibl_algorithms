@@ -225,7 +225,7 @@ class MyIBL:
                     '''
                     if self.dropInstanceFromCD(class_rec_cdInd,
                         class_inst_counter,
-                        ind):
+                        ind) and len(cd_copy)>1:
                         cd_copy.remove(saved_cd)
                         del classificationRecord[saved_cd]
                         #sim.remove(sim[cd_ind])
@@ -349,13 +349,15 @@ class MyIBL:
         for inst, true_label in zip(X, y):
             dist = self.distances(inst)
             neighborhood = []
-            for k in range(self.n_neighbors):
+            #for k in range(self.n_neighbors):
+            k = 0
+            while k < self.n_neighbors and len(dist)>0:
                 # we don't need to sort all similarities just take the
                 # k max similarity neighbors
-
                 min_inst = min(dist, key=lambda x: x[0])
                 dist.remove(min_inst)
                 neighborhood.append(min_inst)
+                k += 1
             pred = self.getWinnerLabel(neighborhood)
 
             # feedback to training
