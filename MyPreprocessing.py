@@ -34,7 +34,8 @@ class MyPreprocessing:
 
         # get label
         labels = df.iloc[:, -1]
-        self.labels_ = labels #pd.factorize(labels)[0]
+        self.labels_ = labels
+        self.labels_fac = pd.factorize(labels)[0]
         df = df.drop(df.columns[len(df.columns) - 1], axis=1)
         nan_cols = df.loc[:, df.isna().any()].columns
 
@@ -44,7 +45,7 @@ class MyPreprocessing:
         if not self.raw:
             if df_num.size > 0:
                 df_num = df_num.replace(np.NaN, 0)
-                min_max_scaler = preprocessing.StandardScaler()
+                min_max_scaler = preprocessing.MinMaxScaler()
                 scaled = min_max_scaler.fit_transform(df_num.values.astype(float))
                 df_normalized = pd.DataFrame(scaled, columns=df_num.columns)
             else:
