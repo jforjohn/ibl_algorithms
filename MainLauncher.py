@@ -10,6 +10,7 @@ import sys
 from os import walk
 from itertools import product
 from scipy.stats import friedmanchisquare
+from Weight_Function import feature_select
 
 import numpy as np
 from time import time
@@ -27,7 +28,8 @@ def getProcessedData(path, dataset, filename, raw=False):
     preprocess.fit(Xtrain)
     df = preprocess.new_df
     labels = preprocess.labels_
-    return df, labels
+    labels_fac = preprocess.labels_fac
+    return df, labels, labels_fac
 
 ##
 if __name__ == '__main__':
@@ -70,8 +72,11 @@ if __name__ == '__main__':
             test_file = filenames[f_ind]
             train_file = filenames[f_ind+1]
             # raw = False
-            df_train, ytrain = getProcessedData(path, dataset, train_file)
-            df_test, ytest = getProcessedData(path, dataset, test_file)
+            df_train, ytrain, ytrain_fac = getProcessedData(path, dataset, train_file)
+            df_test, ytest, _ = getProcessedData(path, dataset, test_file)
+
+            # feature selection (weight)
+            df_train, df_test = feature_select(X_train=df_train, y_train=ytrain_fac, X_test=df_test, method="univariate")
 
             if df_train.shape[1] != df_test.shape[1]:
                 missing_cols = set(df_train.columns) - set(df_test.columns)
