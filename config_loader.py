@@ -8,6 +8,9 @@ def load(config_file):
     """
     requiredConfig = {
         'ibl': ['dataset',
+                'ib_algo',
+                'run',
+                'run_type'
         	   ],
     }
     try:
