@@ -62,9 +62,9 @@ if __name__ == '__main__':
                         distances,
                         votings]
     else:
-        if len(run_type.split('-')==3):
+        if len(run_type.split('-'))==3:
             n_neighbors, distance, voting = run_type.split('-')
-            combinations = [[n_neighbors],
+            combinations = [[int(n_neighbors)],
                             [distance],
                             [voting]]
         else:
@@ -90,23 +90,25 @@ if __name__ == '__main__':
             df_test, ytest, _ = getProcessedData(path, dataset, test_file)
 
             # feature selection (weight)
-            df_train, df_test = feature_select(X_train=df_train, y_train=ytrain_fac, X_test=df_test, method="univariate")
+            if run == 'weights':
+                df_train, df_test = feature_select(X_train=df_train, y_train=ytrain_fac, X_test=df_test, method="univariate")
 
             if df_train.shape[1] != df_test.shape[1]:
+                missing_cols = set(df_test.columns) - set(df_train.columns)
+                for col in missing_cols:
+                    df_train[col] = np.zeros([df_train.shape[0],1])
+
                 missing_cols = set(df_train.columns) - set(df_test.columns)
-                if not missing_cols:
-                    missing_cols = set(df_test.columns) - set(df_train.columns)
-                    for col in missing_cols:
-                        df_train[col] = np.zeros([df_train.shape[0],1])
-                else:
-                    for col in missing_cols:
-                        df_test[col] = np.zeros([df_test.shape[0],1])
+                for col in missing_cols:
+                    print(df_train.shape, df_test.shape)
+                    df_test[col] = np.zeros([df_test.shape[0],1])
 
             clf = MyIBL(n_neighbors=n_neighbor,
                         ibl_algo=ib,
                         voting=voting,
                         distance=distance
                         )
+            print(df_train.shape, df_test.shape)
             clf.fit(df_train, ytrain)
             train_obj.append(clf)
             pred = clf.predict(df_test, ytest)
@@ -136,15 +138,17 @@ if __name__ == '__main__':
     print('Accuracy:')
     print(df_acc)
     print()
-    stat, p = friedmanchisquare(*accum_acc_lst)
-    print(stat, p)
+    if run == 'all':
+        stat, p = friedmanchisquare(*accum_acc_lst)
+        print(stat, p)
     print()
 
     print('Time:')
     print(df_time)
     print()
-    stat, p = friedmanchisquare(*accum_time_lst)
-    print(stat, p)
+    if run == 'all':
+        stat, p = friedmanchisquare(*accum_time_lst)
+        print(stat, p)
     print()
 
     print('Results:')
