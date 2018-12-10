@@ -34,11 +34,11 @@ class MyIBL:
             if self.distance == 'euclidean':
                 dist = np.sqrt(np.sum(np.square(X[neighbor] - inst)))
             elif self.distance == 'cosine':
-                dist = 1 - np.dot(X[neighbor], inst)/(np.sqrt(np.sum(np.square(inst))) *
-                                                   np.sqrt(np.sum(np.square(X[neighbor]))))
+                dist = 1 - np.dot(X[neighbor], inst)/(1+((np.sqrt(np.sum(np.square(inst))) *
+                                                   np.sqrt(np.sum(np.square(X[neighbor]))))))
             elif self.distance == 'canberra':
                 dist = np.sum(np.sqrt(np.sum(np.square(neighbor - inst))) /
-                              np.sqrt(np.sum(np.square(neighbor + inst))))
+                              (1+np.sqrt(np.sum(np.square(neighbor + inst)))))
             elif self.distance == 'hvdm':
                 dist = self.hvdmCalc(X, inst, y)
             sim_lst.append((0-dist, neighbor, y[neighbor]))
@@ -54,8 +54,8 @@ class MyIBL:
             if self.distance == 'euclidean':
                 dist = np.sqrt(np.sum(np.square(neighbor - inst)))
             elif self.distance == 'cosine':
-                dist = 1 - np.dot(neighbor, inst)/(np.sqrt(np.sum(np.square(inst))) *
-                                                   np.sqrt(np.sum(np.square(neighbor))))
+                dist = 1 - np.dot(neighbor, inst)/(1+(np.sqrt(np.sum(np.square(inst))) *
+                                                   np.sqrt(np.sum(np.square(neighbor)))))
             elif self.distance == 'canberra':
                 dist = np.sum(np.sqrt(np.sum(np.square(neighbor - inst)))/
                               np.sqrt(np.sum(np.square(neighbor + inst))))
@@ -195,7 +195,7 @@ class MyIBL:
             #cdInst_max = sim_max_tup[1]
             y_cd_max = sim_max_tup[2]
             if y[ind] != y_cd_max:
-                    self.classification['correct'] += 1
+                self.classification['correct'] += 1
             else:
                 self.classification['incorrect'] += 1
                 self.misclassified.append(ind)
