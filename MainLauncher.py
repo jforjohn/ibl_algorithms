@@ -46,21 +46,35 @@ if __name__ == '__main__':
     config = load(config_file)
 
     dataset = config.get('ibl', 'dataset')
+    ib = config.get('ibl', 'ib_algo')
+    run = config.get('ibl', 'run')
+    run_type = config.get('ibl', 'run_type')
+
     path = 'datasetsCBR/' + dataset + '/' #+ dataset + '.fold.00000'
     filenames = [filename for _,_,filename in walk(path)][0]
 
     train_obj = []
-    n_neighbors = [3, 5, 7]
-    distances = ['euclidean', 'cosine', 'canberra']
-    votings = ['mvs', 'mp', 'brd']
-    combinations = [n_neighbors,
-                    distances,
-                    votings]
+    if run == 'all':
+        n_neighbors = [3, 5, 7]
+        distances = ['euclidean', 'cosine', 'canberra']
+        votings = ['mvs', 'mp', 'brd']
+        combinations = [n_neighbors,
+                        distances,
+                        votings]
+    else:
+        if len(run_type.split('-')==3):
+            n_neighbors, distance, voting = run_type.split('-')
+            combinations = [[n_neighbors],
+                            [distance],
+                            [voting]]
+        else:
+            raise Exception('run_type: <n_neighbors>-<distance>-<voting>')
 
     df_results = pd.DataFrame()
     accum_acc_lst = []
     accum_time_lst = []
     row_names = []
+    ##
     for n_neighbor, distance, voting in product(*combinations):
         #accuracy = 0
         acc_lst = []
@@ -89,7 +103,7 @@ if __name__ == '__main__':
                         df_test[col] = np.zeros([df_test.shape[0],1])
 
             clf = MyIBL(n_neighbors=n_neighbor,
-                        ibl_algo='ib2',
+                        ibl_algo=ib,
                         voting=voting,
                         distance=distance
                         )
@@ -139,5 +153,8 @@ if __name__ == '__main__':
     print(accum_acc_lst)
     print('Time')
     print(accum_time_lst)
+    print()
+    print('Row names')
+    print(row_names)
 
 
