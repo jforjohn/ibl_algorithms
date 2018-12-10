@@ -11,9 +11,11 @@ from os import walk
 from itertools import product
 from scipy.stats import friedmanchisquare
 from Weight_Function import feature_select
+import seaborn as sns
 
 import numpy as np
 from time import time
+import scikit_posthocs as sp
 import matplotlib.pyplot as plt
 
 def getProcessedData(path, dataset, filename, raw=False):
@@ -160,5 +162,26 @@ if __name__ == '__main__':
     print()
     print('Row names')
     print(row_names)
-
+    '''
+    res = sp.posthoc_nemenyi_friedman(np.array(accum_acc_lst).T)
+    res = res.rename(columns={i:rows[i] for i in res.columns}, index={i:rows[i] for i in res.columns})
+    cmap = ['1', '#fb6a4a',  '#08306b',  '#4292c6', '#c6dbef']
+    heatmap_args = {'cmap': cmap, 'linewidths': 0.25, 'linecolor': '0.5', 'clip_on': False, 'square': True, 'cbar_ax_bbox': [0.80, 0.35, 0.04, 0.3]}
+    sp.sign_plot(res, **heatmap_args)
+    plt.title('Nemenyi p-values matrix')
+    
+    for acc, row in zip(accum_acc_lst,rows):
+    # Subset to the airline
+    
+    # Draw the density plot
+    sns.distplot(acc, hist = False, kde = True,
+                 kde_kws = {'linewidth': 3},
+                 label = row)
+    
+    # Plot formatting
+    plt.legend(prop={'size': 16}, title = 'Model')
+    plt.title('Density Plot with Multiple Models')
+    plt.xlabel('Accuracy')
+    plt.ylabel('Density')
+    '''
 
